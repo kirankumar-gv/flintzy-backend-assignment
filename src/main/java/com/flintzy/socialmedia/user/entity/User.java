@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 import com.flintzy.socialmedia.auth.model.AuthProvider;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -19,17 +20,20 @@ import lombok.Setter;
 @Getter
 @Setter
 public class User {
-	
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
 	private String name;
-	
+
 	private String email;
 
 	@Enumerated(EnumType.STRING)
 	private AuthProvider provider;
 
 	private LocalDateTime createdAt;
+
+	@Column(length = 500)
+	private String facebookAccessToken;
 }

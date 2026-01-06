@@ -7,5 +7,5 @@ import com.flintzy.socialmedia.user.entity.User;
 
 public interface FacebookService {
 
-	public List<FacebookPage> linkFacebookPages(User user, String userAccessToken);
+	public List<FacebookPage> linkFacebookPages(User user);
 }

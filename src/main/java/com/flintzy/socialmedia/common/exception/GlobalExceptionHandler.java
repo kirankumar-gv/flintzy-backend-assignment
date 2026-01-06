@@ -16,7 +16,9 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import com.flintzy.socialmedia.common.response.ApiErrorResponse;
 import com.flintzy.socialmedia.facebook.exception.FacebookPageNotLinkedException;
 
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.security.SignatureException;
 
 @ControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
@@ -34,9 +36,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				new ApiErrorResponse(exception.getMessage(), HttpStatus.UNAUTHORIZED.value(), LocalDateTime.now()),
 				HttpStatus.UNAUTHORIZED);
 	}
+	
+	@ExceptionHandler(UserNotLoggedInException.class)
+	public ResponseEntity<ApiErrorResponse> handleUserNotLoggedIn(UserNotLoggedInException exception) {
+		return new ResponseEntity<ApiErrorResponse>(
+				new ApiErrorResponse(exception.getMessage(), HttpStatus.UNAUTHORIZED.value(), LocalDateTime.now()),
+				HttpStatus.UNAUTHORIZED);
+	}
 
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<ApiErrorResponse> globalHandler(Exception exception) {
+		exception.printStackTrace();
 		return new ResponseEntity<ApiErrorResponse>(new ApiErrorResponse("INTERNAL SERVER ERROR",
 				HttpStatus.INTERNAL_SERVER_ERROR.value(), LocalDateTime.now()), HttpStatus.INTERNAL_SERVER_ERROR);
 	}
@@ -53,17 +63,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	}
 
 	@ExceptionHandler(HttpClientErrorException.class)
-	public ResponseEntity<ApiErrorResponse> handleFacebookApiError(HttpClientErrorException ex) {
-		return new ResponseEntity<>(new ApiErrorResponse("Facebook API error: " + ex.getResponseBodyAsString(),
-				ex.getStatusCode().value(), LocalDateTime.now()), ex.getStatusCode());
+	public ResponseEntity<ApiErrorResponse> handleFacebookApiError(HttpClientErrorException exception) {
+		return new ResponseEntity<>(new ApiErrorResponse("Facebook API error: " + exception.getResponseBodyAsString(),
+				exception.getStatusCode().value(), LocalDateTime.now()), exception.getStatusCode());
 	}
-	
-	@ExceptionHandler(io.jsonwebtoken.JwtException.class)
+
+	@ExceptionHandler({JwtException.class, ExpiredJwtException.class, SignatureException.class})
 	public ResponseEntity<ApiErrorResponse> handleJwtException(JwtException ex) {
-	    return new ResponseEntity<>(
-	        new ApiErrorResponse("Invalid or expired token", HttpStatus.UNAUTHORIZED.value(), LocalDateTime.now()),
-	        HttpStatus.UNAUTHORIZED
-	    );
+		return new ResponseEntity<>(
+				new ApiErrorResponse("Invalid or expired token", HttpStatus.UNAUTHORIZED.value(), LocalDateTime.now()),
+				HttpStatus.UNAUTHORIZED);
 	}
 
 	@ExceptionHandler(FacebookPageNotLinkedException.class)
@@ -86,5 +95,5 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return new ResponseEntity<>(new ApiErrorResponse(ex.getMessage(), status.value(), LocalDateTime.now()), status);
 
 	}
-	
+
 }

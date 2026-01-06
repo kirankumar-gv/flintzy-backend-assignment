@@ -4,35 +4,25 @@
 
 This project is a Spring Boot backend application that allows users to:
 
-Authenticate using Google Login
+ - Login using Google OAuth
+ - Connect their Facebook account
+ - Fetch & link Facebook Pages
+ - Publish posts to linked Facebook Pages
+ - Secure APIs using JWT
+ - Handle errors with centralized exception handling
 
-Link their Facebook Pages
-
-Publish posts to linked Facebook Pages
-
-Secure APIs using JWT-based authentication
-
-Handle errors gracefully with global exception handling
-
-The application is designed with clean architecture principles, proper separation of concerns, and progress-based Git commits.
+The design follows clean architecture, layered separation.
 
 ## Tech Stack:-
 
-Java 18
-
-Spring Boot 3.5.x
-
-Spring Security + JWT
-
-Spring Data JPA
-
-MySQL
-
-Facebook Graph API
-
-Maven
-
-Postman (for testing)
+- Java 18
+- Spring Boot 3.5.x
+- Spring Security + JWT
+- Spring Data JPA
+- MySQL
+- Facebook Graph API
+- Maven
+- Postman & Browser (for testing)
 
 ## Project Structure:-
 
@@ -46,23 +36,22 @@ com.flintzy.socialmedia
 │   └── serviceImpl
 │
 ├── security
-│   ├── JwtFilter
-│   ├── JwtUtil
-│   ├── CustomUserDetails
-│   └── SecurityConfig
 │
 ├── facebook
 │   ├── controller
+│   ├── dto
 │   ├── entity
+│   ├── exception
 │   ├── repository
-│   └── service
+│   ├── service
 │   └── serviceImpl
 │
 ├── post
 │   ├── controller
+│   ├── dto
 │   ├── entity
 │   ├── repository
-│   └── service
+│   ├── service
 │   └── serviceImpl
 │
 ├── user
@@ -70,94 +59,119 @@ com.flintzy.socialmedia
 │   └── repository
 │
 └── common
-    └── exception
+    ├── exception
     └── response
 
 
-## Authentication Flow:-
+## Authentication Flow (OAuth + JWT):-
 
-User logs in using Google (gmail)
+1) Google Login (Browser Redirect)
+ 
+User opens:
+http://localhost:8080/auth/google/login
 
-Backend generates a JWT token
+Flow:
 
-JWT is sent in Authorization header for secured APIs
+ - Redirects to Google OAuth
+ - Google returns code
+ - Backend exchanges code → email
+ - User is created (if not exists)
+ - JWT is generated and returned
+ - Response:
+   {
+      "token": "<JWT_TOKEN>",
+      "message": "User Login Successful"
+   }
 
-User details are stored in SecurityContext
+2) Connect Facebook (Browser Redirect)
+
+User opens:
+http://localhost:8080/auth/facebook/login
+
+Flow:
+
+ - Redirects to Facebook OAuth
+ - Facebook returns code
+ - Backend exchanges code → user access token
+ - Token is stored against user in DB
+ - Pages can now be accessed securely
+ - Response:
+   {
+     "message": "Facebook connected successfully"
+   }
 
 ## API Flow:-
 
-Google Login
-POST    /auth/google
-
-Request Body GoogleLinkRequest
-
-{
-  "email":"YOUR_EMAIL",
- "name":"YOUR_NAME"
-}
-
-Response
-
-{
-  "token": "<JWT_TOKEN>"
-}
-
 Link Facebook Pages
+
 POST   /facebook/link
 Authorization: Bearer <JWT_TOKEN>
 
-
-Request Body
-
-{
-  "userAccessToken": "<FACEBOOK_USER_ACCESS_TOKEN>"
-}
-
-
 Response
-
 [
   {
-    "pageId": "852957511245030",
-    "pageName": "Flintzy Test Page"
+    "pageId": "PAGE_ID",
+    "pageName": "PAGE_NAME"
   }
 ]
 
 Publish Post to Facebook Page
+
 POST /posts/publish
 Authorization: Bearer <JWT_TOKEN>
 
 
 Request Body
-
 {
-  "pageId": "852957511245030",
+  "pageId": "PAGE_ID",
   "message": "Hello from Flintzy Social Media App"
 }
 
 
 Response
-
 {
   "status": "SUCCESS",
-  "facebookPostId": "852957511245030_122093526453190628"
+  "facebookPostId": "POST_ID"
 }
 
 ## Error Handling:-
 
-Global exception handling using @ControllerAdvice
+  Global exception handling using @ControllerAdvice
 
 Custom exceptions:
 
-UnauthorizedException
-
-ResourceNotFoundException
-
-FacebookApiException
-
-FacebookPageNotLinkedException
+ - UnauthorizedException
+ - ResourceNotFoundException
+ - FacebookApiException
+ - FacebookPageNotLinkedException
+ - UserNotLoggedInException
 
 Clean, consistent error responses
+
+Example response:-
+{
+  "message": "Invalid or expired token",
+  "status": 401,
+  "timestamp": "2026-01-02T14:33:00"
+}
+
+## Login Sequence, Cookie Behavior & Security Rules
+
+This application enforces a strict and secure login sequence:
+
+ -  User must first sign in using Google OAuth
+ -  After successful login, the backend generates a JWT token
+ -  The JWT is stored in the browser as an HTTP-only cookie
+ -  When the user clicks Connect Facebook, the backend retrieves the JWT from the cookie and identifies the user
+ -  Facebook OAuth completes, and the Facebook access token is securely stored for that user
+
+## Cookie Expiry (Security Behavior)
+
+ - The cookie is intentionally configured with a 2-minute expiry (temporary)
+ - If the user tries Facebook login after 2 minutes, the cookie expires
+ - The backend no longer recognizes the user and immediately throws: UserNotLoggedInException
+ - This ensures Facebook accounts are never linked unless the user is recently authenticated
+ - This behavior demonstrates session-safety and avoids accidental or unauthorized account linking
 
 ## Database Setup:-
 
@@ -175,16 +189,33 @@ mysql -u root -p flintzy_db < db/flintzy_db.sql
 
 ## Configuration:-
 
-Update application.properties:
+## Update application.properties:
+- spring.datasource.url=jdbc:mysql://localhost:3306/flintzy_db
+- spring.datasource.username=root
+- spring.datasource.password=YOUR_PASSWORD
 
-spring.datasource.url=jdbc:mysql://localhost:3306/flintzy_db
-spring.datasource.username=root
-spring.datasource.password=YOUR_PASSWORD
+## JWT Configuration
+- jwt.secret=YOUR_SECRET_KEY
+- jwt.expiration=3600000
 
-jwt.secret=YOUR_SECRET_KEY
-jwt.expiration=3600000
+## Facebook Graph API
+- facebook.graph.api.base-url=https://graph.facebook.com
 
-facebook.graph.api.base-url=https://graph.facebook.com
+## Facebook OAuth Settings
+- facebook.app.id=<FACEBOOK_DEVELOPER_APP_ID>
+- facebook.app.secret=<FACEBOOK_DEVELOPER_APP_SECRET>
+- facebook.redirect.uri=http://localhost:8080/auth/facebook/callback
+- facebook.api.version=v24.0   
+- facebook.oauth.url=https://www.facebook.com/v24.0/dialog/oauth
+- facebook.token.url=https://graph.facebook.com/v24.0/oauth/access_token
+
+# Google OAuth Settings
+- google.client.id=<GOOGLE_CLIENT_ID>
+- google.client.secret=<GOOGLE_CLIENT_SECRET>
+- google.redirect.uri=http://localhost:8080/auth/google/callback
+- google.oauth.url=https://accounts.google.com/o/oauth2/v2/auth
+- google.token.url=https://oauth2.googleapis.com/token
+- google.userinfo.url=https://www.googleapis.com/oauth2/v3/userinfo
 
 ## Running the Application
 
@@ -198,30 +229,74 @@ Application will start on:
 
 http://localhost:8080
 
-## Testing
+## Testing Guide (Step-by-Step)
 
-Use Postman
+Follow this sequence exactly.
 
-Follow API flow:
+1) Login with Google (Browser)
 
-/auth/google
+  - Open in browser: http://localhost:8080/auth/google/login
+  - Google login page appears
+  - After successful login:
+  - User is created in DB (if new)
+  - A JWT cookie is stored
+  - Backend returns a success response
+  - Response Example 
+    {
+      "token": "<JWT_TOKEN>",
+      "message": "User Login Successful"
+    }
 
-/facebook/link
+2) Connect Facebook (Browser)
 
-/posts/publish
+  - Open in browser: http://localhost:8080/auth/facebook/login
+  - Redirects to Facebook OAuth
+  - After user grants permission:
+  - Backend exchanges code → Facebook access token
+  - Token is stored in DB mapped to the authenticated user
+  - Response example:
+    {
+      "message": "Facebook connected successfully"
+    }
+
+3) Link Facebook Pages (Postman)
+
+  - POST request: POST http://localhost:8080/facebook/link
+  - Headers: Authorization: Bearer <JWT_TOKEN>
+  - The backend extracts the user’s email from the JWT, retrieves the stored Facebook access token for that user, and uses it to fetch and link Facebook pages
+  - Response:
+    [
+      {
+        "pageId": "PAGE_ID",
+        "pageName": "PAGE_NAME"
+      }
+   ]
+
+4) Publish a Post (Postman)
+
+  - POST request: POST http://localhost:8080/posts/publish
+  - Headers: Authorization: Bearer <JWT_TOKEN>
+  - Body:
+    {
+      "pageId": "PAGE_ID",
+      "message": "Hello from Flintzy Social Media App"
+    }
+  - Response:
+    {
+      "status": "SUCCESS",
+      "facebookPostId": "POST_ID"
+    }
 
 ## Notes
 
-Progress-based Git commits are used to show development stages
-
-Services follow interface-based abstraction
-
-Duplicate Facebook page entries are prevented
-
-SecurityContext is used instead of repeated DB calls
-
+ - Login must always start with Google OAuth
+ - Facebook login works only if user is authenticated
+ - Cookie expiry (2 minutes) enforces secure flow
+ - The JWT cookie is HTTP-only, meaning it cannot be accessed via browser JavaScript and is safe from XSS attacks.
+ - Facebook pages and posts use stored Facebook tokens
+ - JWT protects all private APIs
 
 ## Author
 
-Kiran Kumar G V
+Kiran Kumar G V 
 Java Backend Developer

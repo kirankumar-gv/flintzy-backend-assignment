@@ -5,11 +5,9 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.flintzy.socialmedia.facebook.dto.FacebookLinkRequest;
 import com.flintzy.socialmedia.facebook.dto.FacebookPageResponse;
 import com.flintzy.socialmedia.facebook.entity.FacebookPage;
 import com.flintzy.socialmedia.facebook.service.FacebookService;
@@ -27,11 +25,11 @@ public class FacebookController {
 	}
 
 	@PostMapping("/link")
-	public ResponseEntity<?> linkPages(@RequestBody FacebookLinkRequest linkRequest,@AuthenticationPrincipal CustomUserDetails userDetails) {
+	public ResponseEntity<?> linkPages(@AuthenticationPrincipal CustomUserDetails userDetails) {
 		
 		User user = userDetails.getUser();
 		
-		List<FacebookPage> pages = facebookService.linkFacebookPages(user, linkRequest.getUserAccessToken());
+		List<FacebookPage> pages = facebookService.linkFacebookPages(user);
 		
 		List<FacebookPageResponse> responsePages = pages.stream().map(p -> new FacebookPageResponse(p.getPageId(), p.getPageName())).toList();
 

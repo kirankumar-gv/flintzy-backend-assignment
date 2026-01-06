@@ -22,7 +22,13 @@ public class FacebookServiceImpl implements FacebookService{
 		this.pageRepository = pageRepository;
 	}
 
-	public List<FacebookPage> linkFacebookPages(User user, String userAccessToken) {
+	public List<FacebookPage> linkFacebookPages(User user) {
+		
+		String userAccessToken = user.getFacebookAccessToken();
+		
+		if(userAccessToken == null) {
+			throw new RuntimeException("Please login to you facebook to get a valid access token");
+		}
 
 		String url = "https://graph.facebook.com/me/accounts?access_token=" + userAccessToken;
 
